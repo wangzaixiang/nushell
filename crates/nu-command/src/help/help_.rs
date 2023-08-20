@@ -133,6 +133,22 @@ You can also learn more at https://www.nushell.sh/book/"#;
     }
 }
 
+pub fn filter_commands_by_category(
+    table: Vec<Value>,
+    category: &str,
+) -> Vec<Value> {
+    table
+        .into_iter()
+        .filter(|cmd| {
+            if let Some( Value::String { val: cate2, .. } ) = cmd.get_data_by_key("category") {
+                cate2 == category
+            } else {
+                false
+            }
+        })
+        .collect()
+}
+
 pub fn highlight_search_in_table(
     table: Vec<Value>, // list of records
     search_string: &str,

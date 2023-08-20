@@ -1,4 +1,5 @@
 use crate::help::highlight_search_in_table;
+use crate::help::help_::filter_commands_by_category;
 use nu_color_config::StyleComputer;
 use nu_engine::{get_full_help, CallExt};
 use nu_protocol::{
@@ -35,6 +36,12 @@ impl Command for HelpCommands {
                 "string to find in command names, usage, and search terms",
                 Some('f'),
             )
+            .named(
+                "category",
+                SyntaxShape::String,
+                "filter commands by category",
+                Some('c'),
+            )
             .input_output_types(vec![(Type::Nothing, Type::Table(vec![]))])
             .allow_variants_without_examples(true)
     }
@@ -57,6 +64,8 @@ pub fn help_commands(
 ) -> Result<PipelineData, ShellError> {
     let head = call.head;
     let find: Option<Spanned<String>> = call.get_flag(engine_state, stack, "find")?;
+    let category: Option<Spanned<String>> = call.get_flag(engine_state, stack, "category")?;
+
     let rest: Vec<Spanned<String>> = call.rest(engine_state, stack, 0)?;
 
     // 🚩The following two-lines are copied from filters/find.rs:
@@ -70,8 +79,16 @@ pub fn help_commands(
 
     if let Some(f) = find {
         let all_cmds_vec = build_help_commands(engine_state, head);
+
+        let filtered = if let Some(cate) = category {
+            filter_commands_by_category(all_cmds_vec, &cate.item)
+        }
+        else {
+            all_cmds_vec
+        };
+
         let found_cmds_vec = highlight_search_in_table(
-            all_cmds_vec,
+            filtered,
             &f.item,
             &["name", "usage", "search_terms"],
             &string_style,
@@ -86,7 +103,14 @@ pub fn help_commands(
     if rest.is_empty() {
         let found_cmds_vec = build_help_commands(engine_state, head);
 
-        Ok(found_cmds_vec
+        let filtered = if let Some(cate) = category {
+            filter_commands_by_category(found_cmds_vec, &cate.item)
+        }
+        else {
+            found_cmds_vec
+        };
+
+        Ok(filtered
             .into_iter()
             .into_pipeline_data(engine_state.ctrlc.clone()))
     } else {
